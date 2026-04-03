@@ -1,11 +1,28 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "mini-data-platform"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.11"
 dependencies = [
     "apache-airflow>=3.1.2",
     "dbt-duckdb>=1.10.0",
     "duckdb>=1.4.1",
+    "openai>=2.0.0",
+    "pydantic>=2.11.0",
+    "python-dotenv>=1.0.1",
+    "rich>=14.0.0",
+    "sqlglot>=27.0.0",
+    "typer>=0.16.0",
 ]
+
+[project.scripts]
+mini-data-agent = "agent.cli:app"
+astronomer = "agent.chat_cli:main"
+
+[tool.setuptools.packages.find]
+include = ["agent*"]

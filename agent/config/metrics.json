@@ -1,0 +1,33 @@
+{
+  "metrics": [
+    {
+      "name": "total_revenue",
+      "description": "Total realized revenue from order line totals.",
+      "sql_expression": "SUM(total)",
+      "base_table": "marts.fct_orders",
+      "grain": "line_item"
+    },
+    {
+      "name": "order_count",
+      "description": "Distinct transactions (orders).",
+      "sql_expression": "COUNT(DISTINCT transaction_id)",
+      "base_table": "marts.fct_orders",
+      "grain": "order"
+    },
+    {
+      "name": "realized_clv",
+      "description": "Historical realized customer value.",
+      "sql_expression": "SUM(total)",
+      "base_table": "marts.fct_orders",
+      "grain": "customer"
+    },
+    {
+      "name": "avg_order_value",
+      "description": "Average line total as used in current dashboards.",
+      "sql_expression": "AVG(total)",
+      "base_table": "marts.fct_orders",
+      "grain": "line_item"
+    }
+  ]
+}
+

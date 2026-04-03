@@ -1,0 +1,3 @@
+[console_scripts]
+astronomer = agent.chat_cli:main
+mini-data-agent = agent.cli:app

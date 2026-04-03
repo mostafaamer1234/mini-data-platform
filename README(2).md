@@ -1,0 +1,290 @@
+# Mini Data Platform
+
+If you have an applied AI interview at Astronomer, we'll ask you to build a small project around this repo. You can also proactively do this as part of your application to speed up the process.
+
+This repo is a synthetic data platform containing mock data csv files, Airflow DAGs, dbt models, Evidence dashboards, and a DuckDB data warehouse. Your objective is to create an agent exposed via a CLI to interact with the data platform. This CLI agent should be geared specifically towards ad-hoc questions and analysis. Things like:
+
+- How much in sales did we do last quarter?
+- Which two products are most frequently bought together?
+- Are there any anomalies with how we sell products?
+- What's our average customer lifetime value?
+- ... and other, more complex things!
+
+To complete this, clone the repo:
+
+```bash
+git clone https://github.com/astronomer/mini-data-platform.git
+```
+
+Then build a CLI agent where you can send questions like the ones above. We have no particular requirements around languages, model providers, methods, etc - instead, we want you to demonstrate how you think about these problems! While this repo is representative of an e-commerce company's data platform, you should aim to keep your implementation generic enough that you could plug in other "mini data platforms". See how much you can infer based on the code and warehouse metadata instead of providing explicit documentation about this data platform to the agent upfront.
+
+To submit, share your repo with us. You should modify / create a new README that outlines your approach and where you'd continue building things if you had more time. This should take no more than a few hours.
+
+## Quick Setup
+
+Run a single command to install dependencies and initialize everything:
+
+```bash
+./setup.sh
+```
+
+This will:
+1. Install Python dependencies (`uv sync`)
+2. Install Evidence dependencies (`npm install`)
+3. Generate synthetic data
+4. Initialize Airflow and load data into DuckDB
+5. Run dbt transformations
+6. Build Evidence sources
+
+Prerequisites:
+
+- `uv`
+- `node` >= 18
+- `npm` >= 7
+
+Then view the dashboards:
+
+```bash
+cd evidence
+npm run dev       # Start dev server
+# Open http://localhost:3000
+```
+
+---
+
+## Manual Setup (Advanced)
+
+<details>
+<summary>Click to expand manual setup steps</summary>
+
+### 1. Install dependencies
+
+```bash
+uv sync
+```
+
+### 2. Generate synthetic data
+
+```bash
+uv run python scripts/generate_all.py
+```
+
+### 3. Initialize Airflow
+
+First, update `airflow/airflow.cfg` to use an absolute path for the database:
+
+```bash
+cd airflow
+# Update sql_alchemy_conn in airflow.cfg to:
+# sql_alchemy_conn = sqlite:////absolute/path/to/your/mini-data-platform/airflow/airflow.db
+
+export AIRFLOW_HOME=$(pwd)
+uv run airflow db migrate
+```
+
+### 4. Run ingestion DAGs
+
+```bash
+# From airflow/ directory
+export AIRFLOW_HOME=$(pwd)
+uv run python dags/ingest_products.py
+uv run python dags/ingest_users.py
+uv run python dags/ingest_transactions.py
+uv run python dags/ingest_campaigns.py
+uv run python dags/ingest_pageviews.py
+```
+
+### 5. Run dbt transformations
+
+```bash
+# From airflow/ directory
+export AIRFLOW_HOME=$(pwd)
+uv run python dags/run_dbt.py
+
+# Or run dbt directly
+cd ../dbt_project
+uv run dbt build --profiles-dir .
+```
+
+</details>
+
+## Project Structure
+
+```sh
+mini-data-platform/
+├── sources/              # Raw source data (CSV files)
+│   ├── postgres/         # Sales, products, users
+│   ├── salesforce/       # Marketing campaigns
+│   └── analytics/        # Page view events
+├── airflow/
+│   ├── dags/            # Airflow DAGs for ingestion and transformation
+│   │   ├── ingest_*.py  # Load data from sources → raw schema
+│   │   ├── run_dbt.py   # Run dbt staging → marts pipeline
+│   │   └── build_evidence.py  # Build Evidence dashboards
+│   └── utils/           # Shared utilities
+├── warehouse/           # DuckDB database (data.duckdb)
+├── dbt_project/         # dbt transformations
+│   └── models/
+│       ├── staging/     # Clean raw data (5 models)
+│       └── marts/       # Analytics-ready tables (3 models)
+├── evidence/            # Evidence BI dashboards
+│   ├── pages/           # Dashboard pages (index, sales, products, customers)
+│   └── sources/         # SQL queries and connection
+└── scripts/             # Data generation scripts
+```
+
+## Data Pipeline
+
+### Raw Layer (`raw` schema)
+
+- Loaded by Airflow ingestion DAGs
+- 5 tables: products, users, transactions, campaigns, pageviews
+
+### Staging Layer (`staging` schema)
+
+- Created by dbt
+- 5 views: stg_products, stg_users, stg_transactions, stg_campaigns, stg_pageviews
+
+### Marts Layer (`marts` schema)
+
+- Created by dbt
+- Denormalized tables for analysis
+- 3 tables:
+  - `dim_products`: Current product catalog (62 products)
+  - `dim_customers`: Current customer info (5,000 customers)
+  - `fct_orders`: Order line items with dimensions (35,980 rows)
+
+## Data Volumes
+
+- **Raw**: ~93K total rows across 5 tables
+- **Staging**: Same as raw (views)
+- **Marts**: 5,062 dimension rows + 35,980 fact rows
+- **Database Size**: ~5-10 MB (DuckDB)
+
+## Evidence Dashboards
+
+The project includes interactive dashboards built with Evidence:
+
+### Available Dashboards
+
+1. **Overview** (`/`) - Key metrics, revenue trends, category performance
+2. **Sales** (`/sales`) - Daily/monthly sales, country analysis, recent orders
+3. **Products** (`/products`) - Product performance, category trends, price analysis
+4. **Customers** (`/customers`) - Customer segments, lifetime value, acquisition trends
+
+### Running Evidence
+
+```bash
+cd evidence
+npm install       # First time only
+npm run sources   # Build data sources
+npm run dev       # Start dev server
+```
+
+Then open http://localhost:3000 to view dashboards.
+
+**Note**: Evidence connects to the DuckDB warehouse at `../warehouse/data.duckdb` and queries the `marts` schema through pass-through SQL files (`fct_orders.sql`, `dim_customers.sql`, `dim_products.sql`).
+
+## CLI Agent (Implemented)
+
+This repo now includes a CLI agent in `agent/` that supports:
+
+- Workflow-first agent loop: orchestrator -> executor -> reviewer
+- Read-only DuckDB SQL execution with SQL validation (`SELECT`/`WITH` only)
+- Marts-first routing with automatic escalation to `staging/raw` for web-analytics intents
+- Real OpenAI LLM pipeline (planner, SQL generator, and answer summarizer)
+- Structured outputs (`Plan`, `SQLQuery`, `Answer`) and evaluation scaffolding
+- Interactive multi-turn chat command (`astronomer`) with session memory
+
+### Run the Agent
+
+```bash
+uv sync
+export OPENAI_API_KEY=your_key_here
+uv run mini-data-agent "How much in sales did we do last quarter?" --verbose
+# Alternative if you are not using uv:
+python3 -m agent.cli "How much in sales did we do last quarter?" --verbose
+```
+
+### Conversational Chat Mode (Single Command)
+
+Start an interactive session with one command:
+
+```bash
+astronomer
+```
+
+In the session, ask multiple questions continuously. The agent keeps conversation context during the session.
+
+Supported chat commands:
+
+- `/help` show help
+- `/verbose on` show plan/sql/reviewer for each turn
+- `/verbose off` hide verbose details
+- `/reset` clear session memory
+- `/exit` or `/quit` end session
+
+### OpenAI Configuration
+
+- Set your API key once in the shell:
+
+```bash
+export OPENAI_API_KEY=your_key_here
+```
+
+- Optional: choose a model at runtime:
+
+```bash
+uv run mini-data-agent "What is our average customer lifetime value?" --openai-model gpt-5.4-mini-2026-03-17 --verbose
+```
+
+### Platform Adapter Configuration
+
+The agent now loads a platform adapter from `agent/config/platform.json` so table/column mappings and retrieval files are config-driven. This makes it easier to reuse the same agent code with other mini data platforms.
+
+Current configurable keys include:
+
+- `orders_table`
+- `transaction_date_column`
+- `revenue_column`
+- `transaction_id_column`
+- `user_id_column`
+- `web_analytics_hints`
+- `retrieval_corpus_paths`
+
+You can also point to a different config at runtime:
+
+```bash
+uv run mini-data-agent "How much in sales did we do last quarter?" --platform-config-path ./my-platform.json --verbose
+```
+
+### Schema Scope Controls
+
+- Default is `auto`:
+  - uses `marts` for most business questions
+  - expands to `marts, staging, raw` for pageview/session/web analytics questions
+- Manual override:
+
+```bash
+uv run mini-data-agent "Which page types generate the most sessions?" --schema-scope all --verbose
+```
+
+### Evaluation Harness
+
+```bash
+uv run python -m agent.evals.run_eval
+```
+
+This writes `agent/evals/latest_results.json` with SQL, row counts, and reviewer notes for sample benchmark questions.
+
+### Building Evidence (Static Site)
+
+```bash
+# Using Airflow DAG
+cd airflow
+uv run python dags/build_evidence.py
+
+# Or build directly
+cd evidence
+npm run build
+```

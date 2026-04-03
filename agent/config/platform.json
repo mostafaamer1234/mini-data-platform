@@ -1,0 +1,23 @@
+{
+  "orders_table": "marts.fct_orders",
+  "transaction_date_column": "transaction_date",
+  "revenue_column": "total",
+  "transaction_id_column": "transaction_id",
+  "user_id_column": "user_id",
+  "web_analytics_hints": [
+    "pageview",
+    "pageviews",
+    "session",
+    "sessions",
+    "browser",
+    "device",
+    "traffic",
+    "funnel",
+    "page_type"
+  ],
+  "retrieval_corpus_paths": [
+    "dbt_project/models/marts/fct_orders.sql",
+    "dbt_project/models/staging/stg_pageviews.sql",
+    "dbt_project/models/staging/_sources.yml"
+  ]
+}

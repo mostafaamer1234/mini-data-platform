@@ -43,6 +43,11 @@ evidence/.evidence/template/
 evidence/.evidence/customization/
 # Note: Evidence uses relative path to main warehouse, no local database needed
 
+# Environment files
+# Keep .env tracked with placeholder values.
+.env.local
+.env.*.local
+
 # dbt
 dbt_project/target/
 dbt_project/logs/

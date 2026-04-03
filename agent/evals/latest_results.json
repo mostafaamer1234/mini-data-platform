@@ -1,0 +1,48 @@
+[
+  {
+    "id": "q1_last_quarter_sales",
+    "question": "How much in sales did we do last quarter?",
+    "confidence": "low",
+    "sql": "\n            WITH bounds AS (\n                SELECT MAX(transaction_date) AS max_txn_date\n                FROM marts.fct_orders\n            ),\n            q AS (\n                SELECT\n                    date_trunc('quarter', max_txn_date) - INTERVAL '3 months' AS start_q,\n                    date_trunc('quarter', max_txn_date) AS end_q\n                FROM bounds\n            )\n            SELECT\n                MIN(q.start_q) AS quarter_start,\n                MIN(q.end_q) - INTERVAL '1 day' AS quarter_end,\n                SUM(f.total) AS total_revenue,\n                COUNT(DISTINCT f.transaction_id) AS total_orders\n            FROM marts.fct_orders f\n            CROSS JOIN q\n            WHERE f.transaction_date >= q.start_q\n              AND f.transaction_date < q.end_q\n            ",
+    "row_count": 1,
+    "review_notes": [
+      "Answer includes assumptions due to ambiguity."
+    ]
+  },
+  {
+    "id": "q2_product_pairs",
+    "question": "Which two products are most frequently bought together?",
+    "confidence": "medium",
+    "sql": "\n            SELECT\n                LEAST(a.product_name, b.product_name) AS product_1,\n                GREATEST(a.product_name, b.product_name) AS product_2,\n                COUNT(DISTINCT a.transaction_id) AS transactions_together\n            FROM marts.fct_orders a\n            JOIN marts.fct_orders b\n              ON a.transaction_id = b.transaction_id\n             AND a.product_id < b.product_id\n            GROUP BY 1, 2\n            ORDER BY transactions_together DESC\n            LIMIT 20\n            ",
+    "row_count": 20,
+    "review_notes": []
+  },
+  {
+    "id": "q3_clv",
+    "question": "What is our average customer lifetime value?",
+    "confidence": "low",
+    "sql": "\n            SELECT\n                user_id,\n                customer_first_name || ' ' || customer_last_name AS customer_name,\n                COUNT(DISTINCT transaction_id) AS order_count,\n                SUM(total) AS lifetime_value\n            FROM marts.fct_orders\n            GROUP BY 1, 2\n            ORDER BY lifetime_value DESC\n            LIMIT 50\n            ",
+    "row_count": 50,
+    "review_notes": [
+      "Answer includes assumptions due to ambiguity."
+    ]
+  },
+  {
+    "id": "q4_anomalies",
+    "question": "Are there anomalies in daily revenue?",
+    "confidence": "low",
+    "sql": "\n            SELECT\n                DATE_TRUNC('day', transaction_date) AS day,\n                SUM(total) AS revenue\n            FROM marts.fct_orders\n            GROUP BY 1\n            ORDER BY 1\n            ",
+    "row_count": 200,
+    "review_notes": [
+      "Answer includes assumptions due to ambiguity."
+    ]
+  },
+  {
+    "id": "q5_pageviews",
+    "question": "Which page types generate the most sessions?",
+    "confidence": "medium",
+    "sql": "\n            SELECT\n                page_type,\n                COUNT(*) AS events,\n                COUNT(DISTINCT session_id) AS sessions,\n                AVG(session_duration_seconds) AS avg_session_duration_seconds\n            FROM staging.stg_pageviews\n            GROUP BY 1\n            ORDER BY events DESC\n            ",
+    "row_count": 7,
+    "review_notes": []
+  }
+]

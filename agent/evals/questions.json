@@ -1,0 +1,23 @@
+[
+  {
+    "id": "q1_last_quarter_sales",
+    "question": "How much in sales did we do last quarter?"
+  },
+  {
+    "id": "q2_product_pairs",
+    "question": "Which two products are most frequently bought together?"
+  },
+  {
+    "id": "q3_clv",
+    "question": "What is our average customer lifetime value?"
+  },
+  {
+    "id": "q4_anomalies",
+    "question": "Are there anomalies in daily revenue?"
+  },
+  {
+    "id": "q5_pageviews",
+    "question": "Which page types generate the most sessions?"
+  }
+]
+
