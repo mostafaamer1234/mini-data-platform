@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 
 from dotenv import load_dotenv
+from openai import AuthenticationError
 from rich.console import Console
 from rich.table import Table
 
@@ -16,13 +17,31 @@ def main() -> None:
     load_dotenv()
     console = Console()
 
-    if not os.getenv("OPENAI_API_KEY"):
+    api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    if not api_key:
         console.print(
             "[red]OPENAI_API_KEY is not set.[/red] Set it in `.env` or export it, then retry."
         )
         raise SystemExit(1)
+    if api_key.startswith("<") or "enter your" in api_key.lower():
+        console.print(
+            "[red]OPENAI_API_KEY looks like a placeholder (e.g. from a template).[/red] "
+            "Replace it with a real secret key from https://platform.openai.com/account/api-keys"
+        )
+        raise SystemExit(1)
 
     settings = AgentSettings()
+    if os.getenv("AGENT_OPENAI_RATE_LIMIT", "1").strip().lower() in (
+        "0",
+        "false",
+        "no",
+        "off",
+    ):
+        settings.openai_rate_limit_enabled = False
+    # Cap for plan / SQL / summarize Chat Completions only (not embedding API).
+    rpm = os.getenv("AGENT_OPENAI_CALLS_PER_MINUTE", "").strip()
+    if rpm.isdigit() and int(rpm) >= 1:
+        settings.openai_calls_per_minute = int(rpm)
     if not settings.warehouse_path.exists():
         console.print(
             f"[red]Warehouse not found at {settings.warehouse_path}.[/red] Run setup first."
@@ -35,7 +54,7 @@ def main() -> None:
 
     console.print("[bold green]Astronomer Agent[/bold green] interactive chat started.")
     console.print(
-        "[dim]Commands: /exit, /quit, /reset, /verbose on, /verbose off, /help[/dim]"
+        "[dim]Commands: exit, quit, reset, verbose on/off, help (with or without /)[/dim]"
     )
 
     while True:
@@ -49,33 +68,41 @@ def main() -> None:
             continue
 
         cmd = user_input.lower()
-        if cmd in {"/exit", "/quit"}:
+        if cmd in {"/exit", "/quit", "exit", "quit"}:
             console.print("[dim]Goodbye.[/dim]")
             break
-        if cmd == "/reset":
+        if cmd in {"/reset", "reset"}:
             memory.clear()
             console.print("[yellow]Conversation context cleared.[/yellow]")
             continue
-        if cmd == "/help":
+        if cmd in {"/help", "help"}:
             console.print(
-                "[dim]/exit /quit /reset /verbose on /verbose off[/dim]"
+                "[dim]exit / quit / reset / verbose on / verbose off / help[/dim]"
             )
             continue
-        if cmd == "/verbose on":
+        if cmd in {"/verbose on", "verbose on"}:
             verbose = True
             console.print("[yellow]Verbose mode enabled.[/yellow]")
             continue
-        if cmd == "/verbose off":
+        if cmd in {"/verbose off", "verbose off"}:
             verbose = False
             console.print("[yellow]Verbose mode disabled.[/yellow]")
             continue
 
         context = memory.render_context()
-        response = orchestrator.run(
-            question=user_input,
-            schema_scope_override=None,
-            conversation_context=context,
-        )
+        try:
+            response = orchestrator.run(
+                question=user_input,
+                schema_scope_override=None,
+                conversation_context=context,
+            )
+        except AuthenticationError:
+            console.print(
+                "[red]OpenAI rejected the API key (401).[/red] "
+                "Use a valid key from https://platform.openai.com/account/api-keys — "
+                "update `.env` (OPENAI_API_KEY=sk-...) or export it, then restart."
+            )
+            continue
 
         console.print("\n[bold green]Answer[/bold green]")
         console.print(response.answer.narrative)
@@ -112,4 +139,3 @@ def main() -> None:
             sql=response.query.sql,
             confidence=response.answer.confidence,
         )
-

@@ -1,0 +1,46 @@
+# Runs ./setup.sh on a clean Ubuntu runner to ensure bootstrap steps work
+# outside your laptop (CI, new machine, fork).
+
+name: Verify setup
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+concurrency:
+  group: verify-setup-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  setup-from-scratch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          version: "latest"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Run setup.sh
+        run: |
+          chmod +x setup.sh scripts/verify_setup.sh
+          ./setup.sh
+
+      - name: Verify warehouse
+        run: ./scripts/verify_setup.sh

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 from agent.analytics.postprocess import rolling_zscore_anomalies
@@ -8,6 +8,7 @@ from agent.llm.provider_factory import get_provider
 from agent.metadata.service import MetadataService
 from agent.models import AgentResponse
 from agent.platform.adapter import resolve_platform_adapter
+from agent.rate_limit import SlidingWindowRateLimiter
 from agent.retrieval.service import RetrievalService
 from agent.reviewer.reviewer import Reviewer
 from agent.settings import AgentSettings
@@ -19,6 +20,18 @@ from agent.validation.sql_validator import validate_sql
 class AgentOrchestrator:
     settings: AgentSettings
     root: Path
+    _rate_limiter: SlidingWindowRateLimiter | None = field(init=False, default=None)
+
+    def __post_init__(self) -> None:
+        if self.settings.openai_rate_limit_enabled:
+            object.__setattr__(
+                self,
+                "_rate_limiter",
+                SlidingWindowRateLimiter(
+                    max_calls=self.settings.openai_calls_per_minute,
+                    window_seconds=60.0,
+                ),
+            )
 
     def run(
         self,
@@ -39,7 +52,7 @@ class AgentOrchestrator:
         if self.settings.rag_enabled:
             retrieval.load_corpus(platform.retrieval_candidates(self.root))
         reviewer = Reviewer()
-        provider = get_provider(self.settings)
+        provider = get_provider(self.settings, rate_limiter=self._rate_limiter)
 
         schema_scope = self._schema_scope(
             question,

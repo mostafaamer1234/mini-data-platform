@@ -1,5 +1,4 @@
-# Mini Data Platform Agent - README
-
+# Mini Data Platform Agent
 
 This project is a synthetic analytics platform plus an AI-powered CLI agent for ad-hoc data questions.
 
@@ -74,7 +73,7 @@ With context enrichment from:
 
 ---
 
-## Advanced RAG Pipeline
+## RAG Pipeline
 
 The project includes a hybrid RAG implementation (`agent/retrieval/service.py`):
 
@@ -299,6 +298,17 @@ npm run dev
 
 Then open: `http://localhost:3000`
 
+### Verify setup in another environment
+
+- **After `./setup.sh`**, confirm the warehouse and `marts` schema:
+
+  ```bash
+  chmod +x scripts/verify_setup.sh
+  ./scripts/verify_setup.sh
+  ```
+
+- **CI (clean Linux VM)**: push to GitHub; `.github/workflows/verify-setup.yml` runs `setup.sh` then `verify_setup.sh` on Ubuntu so you can confirm bootstrap outside your laptop.
+
 ---
 
 ## Configuration
@@ -348,6 +358,7 @@ For stronger reliability, run repeated hard-question sweeps and compare answers 
 ## Security and Safety Posture
 
 - Read-only DuckDB connections for execution
+- Rate limiting on OpenAI Chat Completions (plan, SQL generation, summarization): a sliding-window cap per process limits burst calls and reduces cost or misuse if an API key is exposed. Configure with `AGENT_OPENAI_CALLS_PER_MINUTE` and `AGENT_OPENAI_RATE_LIMIT`, or `mini-data-agent --rate-limit-per-minute` / `--no-rate-limit`.
 - SQL safety checks (statement type + schema constraints)
 - Controlled LLM payloads with structured JSON responses
 - Guardrails for common query failure modes
@@ -355,12 +366,19 @@ For stronger reliability, run repeated hard-question sweeps and compare answers 
 
 ---
 
+## Current Limitations
+
+- Metric-heavy intents can still drift when definitions are ambiguous (for example repeat-purchase semantics, co-purchase windows, cancellation rate denominators)
+- Narrative summaries can be numerically right but phrased in ways that fail strict automated checks (for example signed percentages vs "X% lower")
+- LLM output always has the same structure regardless of query, if I had more time I would make it more flexible.
+
 ## Recommended Next Improvements
 
-1. **Adaptive planning architecture**: add an explicit planner-router-critic loop where the router selects reasoning/execution strategies dynamically from metadata and observed query behavior, instead of fixed intent branches.
-2. **Contract-driven semantic layer**: use a configurable metric/ontology contract (entities, measures, grains, time semantics) loaded from metadata/config so reasoning is portable across datasets without hardcoded metric logic.
-3. **Tool-augmented self-correction**: introduce a verifier agent that inspects generated SQL and result semantics, then triggers bounded repair cycles using structured error taxonomies rather than hand-authored guardrails.
-4. **Learning evaluation pipeline**: build continuous evals with scenario generation, semantic scoring, and failure clustering to automatically surface architecture-level weaknesses and prioritize model/prompt/tooling improvements.
-5. **Grounded provenance framework**: require answer claims to map to explicit evidence spans (retrieval chunks + SQL fields + result cells) so trust and debuggability improve without embedding platform-specific assumptions in prompts.
-6. **Secure MCP tool plane**: add an MCP server as a dedicated tool/API layer with mTLS-secured service-to-service communication, centralized tool registry, and policy-controlled access so agent capabilities are portable, auditable, and production-safe.
+1. **Deterministic semantic layer**: extend metric contracts and add template SQL for fragile intents (co-purchase, repeat cadence, cancellation semantics) so correctness is not purely LLM-driven when definitions matter.
+2. **Observability**: structured tracing (request correlation id, per-step latency, token usage, SQL fingerprint, retrieval chunk ids) for debugging, regression analysis, and production tuning.
+3. **Automated testing**: unit tests for SQL validation, platform adapter inference, and RAG indexing; integration tests against a small fixture DuckDB to catch regressions before release.
+4. **Production security posture**: secrets only via environment and secret managers in deployment; no real API keys in VCS; optional audit logging for tool and API calls.
+5. **Verifier and continuous evaluation**: a verifier step that inspects SQL and result semantics with bounded repair; paired with eval pipelines (scenario generation, semantic scoring, failure clustering) to prioritize fixes.
+6. **Grounded provenance**: require answer claims to cite evidence spans (retrieval chunks + SQL fields + result cells) for trust and debuggability.
+7. **Secure MCP tool plane**: dedicated MCP server for tools and APIs with mTLS between services, centralized tool registry, and policy-controlled access so capabilities stay portable, auditable, and production-safe.
 

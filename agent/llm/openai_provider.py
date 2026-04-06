@@ -7,11 +7,17 @@ from dataclasses import dataclass
 from agent.llm.base import LLMProvider
 from agent.llm.json_utils import make_json_safe
 from agent.models import Answer, Plan, SQLQuery
+from agent.rate_limit import SlidingWindowRateLimiter
 
 
 @dataclass(slots=True)
 class OpenAIProvider(LLMProvider):
     model: str
+    rate_limiter: SlidingWindowRateLimiter | None = None
+
+    def _throttle(self) -> None:
+        if self.rate_limiter is not None:
+            self.rate_limiter.acquire()
 
     def _client(self):
         from openai import OpenAI
@@ -33,6 +39,7 @@ class OpenAIProvider(LLMProvider):
             "Keep schema_scope exactly as provided."
         )
         client = self._client()
+        self._throttle()
         response = client.chat.completions.create(
             model=self.model,
             temperature=0.0,
@@ -87,6 +94,7 @@ class OpenAIProvider(LLMProvider):
             f"revenue_column={revenue_col}, transaction_id_column={tx_col}."
         )
         client = self._client()
+        self._throttle()
         response = client.chat.completions.create(
             model=self.model,
             temperature=0.0,
@@ -130,6 +138,7 @@ class OpenAIProvider(LLMProvider):
             "Set confidence as one of: low, medium, high."
         )
         client = self._client()
+        self._throttle()
         response = client.chat.completions.create(
             model=self.model,
             temperature=0.2,

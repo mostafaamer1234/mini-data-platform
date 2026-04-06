@@ -5,6 +5,7 @@ agent/chat_cli.py
 agent/chat_session.py
 agent/cli.py
 agent/models.py
+agent/rate_limit.py
 agent/settings.py
 agent/analytics/__init__.py
 agent/analytics/postprocess.py
@@ -12,12 +13,16 @@ agent/evals/__init__.py
 agent/evals/run_eval.py
 agent/llm/__init__.py
 agent/llm/base.py
+agent/llm/json_utils.py
 agent/llm/openai_provider.py
 agent/llm/provider_factory.py
 agent/metadata/__init__.py
 agent/metadata/service.py
+agent/metrics/contracts.py
 agent/orchestrator/__init__.py
 agent/orchestrator/agent.py
+agent/platform/__init__.py
+agent/platform/adapter.py
 agent/retrieval/__init__.py
 agent/retrieval/service.py
 agent/reviewer/__init__.py

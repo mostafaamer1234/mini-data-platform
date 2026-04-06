@@ -5,6 +5,7 @@ from typing import Optional
 
 import typer
 from dotenv import load_dotenv
+from openai import AuthenticationError
 from rich.console import Console
 from rich.table import Table
 
@@ -33,10 +34,25 @@ def ask(
         help="Optional platform adapter config JSON (defaults to agent/config/platform.json).",
     ),
     verbose: bool = typer.Option(False, help="Show plan, SQL, and reviewer notes"),
+    rate_limit_per_minute: Optional[int] = typer.Option(
+        None,
+        help="Max OpenAI chat completion calls per rolling minute (plan, SQL, summarize). Default: 60.",
+    ),
+    no_rate_limit: bool = typer.Option(
+        False,
+        "--no-rate-limit",
+        help="Disable Chat Completions rate limiting.",
+    ),
 ) -> None:
     load_dotenv()
 
     settings = AgentSettings(openai_model=openai_model)
+    if no_rate_limit:
+        settings.openai_rate_limit_enabled = False
+    elif rate_limit_per_minute is not None:
+        if rate_limit_per_minute < 1:
+            raise typer.BadParameter("rate_limit_per_minute must be >= 1")
+        settings.openai_calls_per_minute = rate_limit_per_minute
     if warehouse_path is not None:
         settings.warehouse_path = warehouse_path
     if platform_config_path is not None:
@@ -44,9 +60,15 @@ def ask(
 
     import os
 
-    if not os.getenv("OPENAI_API_KEY"):
+    api_key = (os.getenv("OPENAI_API_KEY") or "").strip()
+    if not api_key:
         raise typer.BadParameter(
             "OPENAI_API_KEY is not set. Export it first, then retry the command."
+        )
+    if api_key.startswith("<") or "enter your" in api_key.lower():
+        raise typer.BadParameter(
+            "OPENAI_API_KEY looks like a placeholder. Set a real key from "
+            "https://platform.openai.com/account/api-keys in .env or your shell."
         )
 
     if not settings.warehouse_path.exists():
@@ -55,10 +77,16 @@ def ask(
         )
 
     orchestrator = AgentOrchestrator(settings=settings, root=Path.cwd())
-    response = orchestrator.run(
-        question=question,
-        schema_scope_override=None if schema_scope == "auto" else schema_scope,
-    )
+    try:
+        response = orchestrator.run(
+            question=question,
+            schema_scope_override=None if schema_scope == "auto" else schema_scope,
+        )
+    except AuthenticationError:
+        raise typer.BadParameter(
+            "OpenAI rejected the API key (401). Use a valid OPENAI_API_KEY from "
+            "https://platform.openai.com/account/api-keys"
+        ) from None
 
     console.print("\n[bold green]Answer[/bold green]")
     console.print(response.answer.narrative)

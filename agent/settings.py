@@ -19,4 +19,7 @@ class AgentSettings:
     rag_chunk_overlap: int = 180
     rag_candidate_k: int = 24
     rag_top_k: int = 6
+    # Cap OpenAI Chat Completions (plan / SQL / summarize) per rolling minute per process.
+    openai_rate_limit_enabled: bool = True
+    openai_calls_per_minute: int = 60
 

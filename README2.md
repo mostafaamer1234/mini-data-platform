@@ -1,22 +1,6 @@
-Metadata-Version: 2.4
-Name: mini-data-platform
-Version: 0.1.0
-Summary: Add your description here
-Requires-Python: >=3.11
-Description-Content-Type: text/markdown
-Requires-Dist: apache-airflow>=3.1.2
-Requires-Dist: dbt-duckdb>=1.10.0
-Requires-Dist: duckdb>=1.4.1
-Requires-Dist: openai>=2.0.0
-Requires-Dist: pydantic>=2.11.0
-Requires-Dist: python-dotenv>=1.0.1
-Requires-Dist: rich>=14.0.0
-Requires-Dist: sqlglot>=27.0.0
-Requires-Dist: typer>=0.16.0
-
 # Mini Data Platform Agent - README
 
-**Limitations and future work:** [Current Limitations](#current-limitations) · [Recommended Next Improvements](#recommended-next-improvements) (at the end of this file).
+## What This Project Is
 
 This project is a synthetic analytics platform plus an AI-powered CLI agent for ad-hoc data questions.
 
@@ -29,7 +13,7 @@ It combines:
 - Evidence dashboards for BI exploration
 - An agentic CLI (`mini-data-agent`, `astronomer`) that turns natural language questions into validated SQL answers
 
-Core goal: let a user ask business questions from dataset in plain language and get grounded, query-backed answers with confidence and assumptions.
+Core goal: let a user ask business questions in plain language and get grounded, query-backed answers with confidence and assumptions.
 
 ## Inference-First Principle
 
@@ -149,7 +133,6 @@ In practical terms, replacing the underlying data/model files should still give 
 - Interactive multi-turn chat (`astronomer`)
 - Structured outputs (`Plan`, `SQLQuery`, `Answer`)
 - SQL safety guardrails and read-only execution
-- AI Answer Includes confidence and assumptions for maximum transperacy
 - Query regeneration retries on failure
 - Relative-period fallback behavior for sparse/dated datasets
 - Co-purchase guardrail (`pair_count` transaction-based intent)
@@ -292,7 +275,14 @@ uv run python dags/run_dbt.py
 
 ## Running the System
 
-### 1) Interactive chat mode
+### 1) Ask one-off questions
+
+```bash
+export OPENAI_API_KEY=your_key_here
+uv run mini-data-agent "How much in sales did we do last quarter?" --verbose
+```
+
+### 2) Interactive chat mode
 
 ```bash
 export OPENAI_API_KEY=your_key_here
@@ -307,7 +297,7 @@ Chat commands:
 - `/reset`
 - `/exit` or `/quit`
 
-### 2) Start dashboards
+### 3) Start dashboards
 
 ```bash
 cd evidence
@@ -375,7 +365,9 @@ For stronger reliability, run repeated hard-question sweeps and compare answers 
 ## Current Limitations
 
 - Metric-heavy intents can still drift when definitions are ambiguous (for example repeat-purchase semantics, co-purchase windows, cancellation rate denominators)
-- Narrative summaries can be numerically right but phrased in ways that fail strict automated checks (for example signed percentages vs "X% lower")
+- Narrative summaries can be numerically right but phrased in ways that fail strict automated checks (for example signed percentages vs “X% lower”)
+
+---
 
 ## Recommended Next Improvements
 
