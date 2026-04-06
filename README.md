@@ -298,17 +298,6 @@ npm run dev
 
 Then open: `http://localhost:3000`
 
-### Verify setup in another environment
-
-- **After `./setup.sh`**, confirm the warehouse and `marts` schema:
-
-  ```bash
-  chmod +x scripts/verify_setup.sh
-  ./scripts/verify_setup.sh
-  ```
-
-- **CI (clean Linux VM)**: push to GitHub; `.github/workflows/verify-setup.yml` runs `setup.sh` then `verify_setup.sh` on Ubuntu so you can confirm bootstrap outside your laptop.
-
 ---
 
 ## Configuration
